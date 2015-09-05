@@ -73,8 +73,8 @@ class Command(BaseCommand):
 
         if not failures:
             if test_labels != todo:
-                print "\nFinally working!\n"
                 self.set_title('NOW PASS!')
+                print "\nFinally working!\n"
                 # Clear error todo (reset to test_labels)
                 self.next_todo() 
             else:
@@ -83,7 +83,7 @@ class Command(BaseCommand):
             return
         
         # Add all failues to next todo list (for re-run)
-        self.next_todo(failures)
+        self.next_todo(*failures)
         self.set_title('FAIL [%d]' % len(failures))
         # Print options for user to select test target but
         # also set all failed tests as targets

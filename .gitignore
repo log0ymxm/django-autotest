@@ -2,3 +2,5 @@
 *.pyo
 *.swp
 pythonenv
+*.egg-info
+dist

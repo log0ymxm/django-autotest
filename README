@@ -15,7 +15,7 @@ Installation
 
 Install via pip or your python egg layer of choice:
 
-    pip install django-autotest
+    pip install django-autotest-command
 
 Then add to your django settings.py
 
