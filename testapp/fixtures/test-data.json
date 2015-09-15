@@ -1,0 +1,30 @@
+[
+{
+  "fields": {
+    "name": "A"
+  },
+  "model": "testapp.thing",
+  "pk": 1
+},
+{
+  "fields": {
+    "name": "B"
+  },
+  "model": "testapp.thing",
+  "pk": 2
+},
+{
+  "fields": {
+    "name": "C"
+  },
+  "model": "testapp.thing",
+  "pk": 3
+},
+{
+  "fields": {
+    "name": "D"
+  },
+  "model": "testapp.thing",
+  "pk": 4
+}
+]
