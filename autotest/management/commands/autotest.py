@@ -12,6 +12,9 @@ from django.core.management.commands.test import Command as BaseCommand
 
 class Command(BaseCommand):
     todo_file = '.failed-tests'
+    auto_module = ('/', 'tmp', 'autotest', 'at_lib')
+    am_path = property(lambda self: os.path.join(*self.auto_module[:-1]))
+    am_file = property(lambda self: os.path.join(*self.auto_module)+'.py')
     help = ('Discover and run tests in the specified modules or the current directory and restart when files change to re-run tests.')
 
     @property
@@ -32,6 +35,14 @@ class Command(BaseCommand):
             print "\n * Running tests!\n"
         else:
             self.set_title('setup', **options)
+
+            # Make a module we can import and use to re-run at will
+            print self.am_path
+            if not os.path.isdir(self.am_path):
+                os.makedirs(self.am_path)
+            with open(self.am_file, 'w') as fhl:
+                print "# Force tests to reload by modification of this file\n"
+
             print "\nPlease wait while your database is created...\n"
             test_runner = self.TestRunner(**options)
             test_runner.setup_test_environment()
@@ -39,7 +50,11 @@ class Command(BaseCommand):
             atexit.register(self.at_exit, old_config, **options)
             with open(self.todo_file, 'w') as fhl:
                 fhl.write('')
+
             print "\n -= Testing Service Running; use [CTRL]+[C] to exit =-\n"
+
+        sys.path.append(self.am_path)
+        __import__(self.auto_module[-1])
 
         try:
             autoreload.main(self.inner_run, test_labels, options)
@@ -50,7 +65,11 @@ class Command(BaseCommand):
         sys.stdout.write("\x1b]2;@test %s\x07" % text)
 
     def at_exit(self, old_config, **options):
-        os.unlink(self.todo_file)
+        for f in (self.todo_file, self.am_file, self.am_file+'c', self.am_path):
+            if os.path.isfile(f):
+                os.unlink(f)
+            elif os.path.isdir(f):
+                os.rmdir(f)
         test_runner = self.TestRunner(**options)
         test_runner.teardown_databases(old_config)
         test_runner.teardown_test_environment()
@@ -80,7 +99,7 @@ class Command(BaseCommand):
             else:
                 self.set_title('PASS')
                 print "\nStill working!\n"
-            return
+            return self.ask_rerun()
         
         # Add all failues to next todo list (for re-run)
         self.next_todo(*failures)
@@ -102,6 +121,13 @@ class Command(BaseCommand):
         else:
             print "Replaying [%s]" % test
             self.next_todo(*new_todos)
+        return self.ask_rerun()
+
+    def ask_rerun(self):
+        a = raw_input("Run import again [Yn]: ").strip()
+        if not a or a.lower()[0] == 'y':
+            with open(self.am_file, 'a') as fhl:
+                fhl.write('#') 
 
     def next_todo(self, *new_todos):
         with open(self.todo_file, 'w') as todo_list:
