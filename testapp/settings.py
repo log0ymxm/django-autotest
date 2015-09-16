@@ -10,6 +10,10 @@ DATABASES = {
         'HOST': '127.0.0.1',
         'PORT': '',
     },
+    'extra': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'doesnt_exist.db',
+    },
 }
 
 # Quick-start development settings - unsuitable for production
