@@ -72,12 +72,10 @@ class Command(BaseCommand):
             print "Exiting autorun."
 
     def save_config(self):
-        print "Saving config"
         with open(self.config_file, 'w') as fhl:
             fhl.write(json.dumps(self.config))
 
     def setup_databases(self, **options):
-        print "\nPlease wait while your database is created...\n"
         test_runner = self.TestRunner(**options)
         old_config = test_runner.setup_databases()
         atexit.register(self.teardown_autotest, old_config, **options)
