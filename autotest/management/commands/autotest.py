@@ -42,7 +42,7 @@ class Command(BaseCommand):
                 for conf in settings.DATABASES.values():
                     if conf["NAME"] == name:
                         conf["NAME"] = test_name
-            #self.connection.settings_dict["NAME"] = test_database_name
+            settings.DEBUG = False
         else:
             self.set_title('setup', **options)
 
@@ -51,7 +51,6 @@ class Command(BaseCommand):
                 os.makedirs(self.am_path)
             with open(self.am_file, 'w') as fhl:
                 fhl.write("# Force tests to reload with this file\n")
-            print self.am_file
 
             self.config = self.setup_databases(**options)
             self.save_config()
