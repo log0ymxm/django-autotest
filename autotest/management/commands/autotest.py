@@ -10,6 +10,7 @@ import atexit
 from django.utils import autoreload
 from django.test.utils import setup_test_environment, teardown_test_environment
 from django.core.management.commands.test import Command as BaseCommand
+from django.core.management import call_command
 
 
 class Command(BaseCommand):
@@ -39,7 +40,8 @@ class Command(BaseCommand):
             with open(self.config_file, 'r') as fhl:
                 self.config = json.loads(fhl.read())
             for (name, test_name) in self.config.get('db', {}).items():
-                for conf in settings.DATABASES.values():
+                for (name, conf) in settings.DATABASES.items():
+                    #self.flush_database(name)
                     if conf["NAME"] == name:
                         conf["NAME"] = test_name
             settings.DEBUG = False
@@ -80,7 +82,6 @@ class Command(BaseCommand):
         atexit.register(self.teardown_autotest, old_config, **options)
 
         config = {'db': {}}
-        from django.conf import settings
         for conf in old_config[0]:
             config['db'][conf[1]] = conf[0].settings_dict['NAME']
         return config
@@ -100,6 +101,8 @@ class Command(BaseCommand):
 
     def inner_run(self, *test_labels, **options):
         todo = self.config.get('todo', test_labels)
+        if '*' in todo:
+            todo = []
 
         setup_test_environment()
         test_runner = self.TestRunner(**options)
@@ -134,22 +137,28 @@ class Command(BaseCommand):
         for x, test in enumerate(failures):
             print "  %d. %s " % (x+1, test)
 
-        try:
-            tgt = raw_input("\nSelect failures to target (enter to reset): ")
-            self.config['todo'] = [failures[int(x)-1] for x in tgt.split(',')]
-            self.save_config()
-            print "Replaying [%s]" % test
-        except:
-            # Reset to test_labels by default
-            print "Replaying [all]"
-            del self.config['todo']
-            self.save_config()
-
         return self.ask_rerun()
 
-    def ask_rerun(self):
-        a = raw_input("Run import again [Yn]: ").strip()
-        if not a or a.lower()[0] == 'y':
+    def flush_database(self, db_name):
+        """Remove all data that might be in a database left over"""
+        call_command('flush', verbosity=0, interactive=False, database=db_name,
+                     skip_checks=True, reset_sequences=False, allow_cascade=True,
+                     inhibit_post_migrate=False)
+
+
+    def ask_rerun(self, failures=None):
+        rerun = raw_input("Select failures to target or press enter to re-run all: ").strip()
+        self.config['todo'] = list(self.get_selection(rerun, failures))
+        self.save_config()
+        if rerun != '-':
             with open(self.am_file, 'a') as fhl:
                 fhl.write('#') 
 
+    def get_selection(self, rerun, failures):
+        for failure in rerun.split(','):
+            failure = failure.strip()
+            if failure.isdigit() and failures:
+                yield failures[int(failure)-1]
+            elif failure:
+                yield failure
+    
