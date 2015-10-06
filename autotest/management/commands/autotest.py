@@ -10,7 +10,6 @@ import atexit
 from django.utils import autoreload
 from django.test.utils import setup_test_environment, teardown_test_environment
 from django.core.management.commands.test import Command as BaseCommand
-from django.core.management import call_command
 
 
 class Command(BaseCommand):
@@ -39,11 +38,13 @@ class Command(BaseCommand):
             from django.conf import settings
             with open(self.config_file, 'r') as fhl:
                 self.config = json.loads(fhl.read())
-            for (name, test_name) in self.config.get('db', {}).items():
-                for (name, conf) in settings.DATABASES.items():
+            for (orig_name, test_name) in self.config.get('db', {}).items():
+                for (db_name, conf) in settings.DATABASES.items():
                     #self.flush_database(name)
-                    if conf["NAME"] == name:
+                    if conf["NAME"] == orig_name:
                         conf["NAME"] = test_name
+                        #print "DB SET: %s -> %s" % (orig_name, test_name)
+
             settings.DEBUG = False
         else:
             self.set_title('setup', **options)
@@ -106,7 +107,15 @@ class Command(BaseCommand):
 
         setup_test_environment()
         test_runner = self.TestRunner(**options)
-        suite = test_runner.build_suite(todo, None)
+        try:
+            suite = test_runner.build_suite(todo, None)
+        except ImportError:
+            print "Error, selected test module can't be found: %s" % str(todo)
+            return self.ask_rerun()
+        except AttributeError:
+            print "Error, selected test function can't be found: %s" % str(todo)
+            return self.ask_rerun()
+
         result = test_runner.run_suite(suite)
         teardown_test_environment()
 
@@ -137,10 +146,11 @@ class Command(BaseCommand):
         for x, test in enumerate(failures):
             print "  %d. %s " % (x+1, test)
 
-        return self.ask_rerun()
+        return self.ask_rerun(failures)
 
     def flush_database(self, db_name):
         """Remove all data that might be in a database left over"""
+        from django.core.management import call_command
         call_command('flush', verbosity=0, interactive=False, database=db_name,
                      skip_checks=True, reset_sequences=False, allow_cascade=True,
                      inhibit_post_migrate=False)
