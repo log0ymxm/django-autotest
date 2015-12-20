@@ -6,10 +6,27 @@ import os
 import sys
 import json
 import atexit
+import subprocess as sp
 
 from django.utils import autoreload
 from django.test.utils import setup_test_environment, teardown_test_environment
 from django.core.management.commands.test import Command as BaseCommand
+
+#
+# Monkey patch to test django is still working before reloading (no inode support yet)
+#
+orig_has_changed = autoreload.code_changed
+def new_has_changed():
+    ret = orig_has_changed()
+    if ret:
+        child = sp.Popen([sys.argv[0], 'check'], stdout=sp.PIPE)
+        streamdata = child.communicate()[0]
+        #print streamdata
+        if child.returncode != 0:
+            sys.stderr.write("Error detected! Please correct the above errors before tests can resume!")
+            return False
+    return ret
+autoreload.code_changed = new_has_changed
 
 
 class Command(BaseCommand):
@@ -154,7 +171,6 @@ class Command(BaseCommand):
         call_command('flush', verbosity=0, interactive=False, database=db_name,
                      skip_checks=True, reset_sequences=False, allow_cascade=True,
                      inhibit_post_migrate=False)
-
 
     def ask_rerun(self, failures=None):
         rerun = raw_input("Select failures to target or press enter to re-run all: ").strip()
