@@ -100,7 +100,7 @@ class Command(BaseCommand):
         atexit.register(self.teardown_autotest, old_config, **options)
 
         config = {'db': {}}
-        for conf in old_config[0]:
+        for conf in old_config:
             config['db'][conf[1]] = conf[0].settings_dict['NAME']
         return config
 
